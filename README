@@ -1,3 +1,6 @@
 geekstream
 
 little shell script which manages your stream links to start it quickly in mplayer
+
+You just need a .streamlist file in your home directory which has the same
+syntax like the example
