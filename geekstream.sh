@@ -7,7 +7,7 @@
 function getRandomIndex()
 {
     local number=$RANDOM
-    number=$(($number % ${#lines[@]}))
+    number=$(($number % $limit))
     #eval "$1='$number'"
     return $number
 }
@@ -35,7 +35,7 @@ function list()
 {
     OLDIFS=$IFS
     IFS=""
-    for ((j=0; j < ${#lines[@]}; j++))
+    for ((j=0; j < $limit; j++))
     do
         echo "[$j] ${lines[$j]}"
     done
@@ -62,6 +62,8 @@ do
     i=i+1
 done < $slist
 
+limit=$(expr ${#lines[@]} - 1)
+
 while getopts a:lri: opt
 do
     case $opt in
@@ -73,13 +75,19 @@ do
     esac
 done
 
-echo "take your choose:"
-read -t5 num;
-if [ $? -eq 142 ]; then
-    echo "starting random ..."
-    getRandomIndex
-    num=$?
-fi
+# main loop
+while list
+do
+    echo "take your choose:"
+    read -t5 num;
+    if [ $? -eq 142 ]; then
+        echo "starting random ..."
+        getRandomIndex
+        num=$?
+    elif [ $num -gt $limit ]; then
+        echo "wrong index $num choose between 0 and $limit"
+        continue
+    fi
 
-play $num
-
+    play $num
+done
