@@ -8,7 +8,6 @@ function getRandomIndex()
 {
     local number=$RANDOM
     number=$(($number % $limit))
-    #eval "$1='$number'"
     return $number
 }
 
@@ -21,14 +20,13 @@ function play()
 }
 
 #TODO
-# after adding a new stream it should play it instant
 # check if link is an valid url
 function addNewStream()
 {
     local name=$1
     local link=$2
     echo "$name $link" >> $slist
-    exit 0
+    exec mplayer $link
 }
 
 function list()
@@ -71,7 +69,6 @@ do
         l) list && exit;;
         i) play $OPTARG;;
         r) playRandom;;
-        ?) list;;
     esac
 done
 
