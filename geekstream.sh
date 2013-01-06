@@ -1,38 +1,45 @@
 #! /bin/bash
 
-# oneline to create test file
-#for i in $(eval echo {"http://ice.somafm.com/beatblender"," http://ice.somafm.com/sonicuniverse","http://ice.somafm.com/dubstep"}); do echo $i >> "$HOME/.streamlist"; done
-#
-#set -x
-function getRandomIndex()
+function playRandom()
 {
     local number=$RANDOM
     number=$(($number % $limit))
-    return $number
+    playIndex $number
+}
+
+function playIndex()
+{
+    local idx=$1
+    if [[ $idx -le $limit ]];then
+        arg=$(echo ${lines[$idx]} | awk '{print $2}')
+        play $arg
+    else
+        echo error index not found
+    fi
 }
 
 function play()
 {
-    local idx=$1
-    echo "index $idx"
-    mplayer ${lines[$idx]}
-    exit 0
+    local ressource=$1
+    echo RESSOURCE $ressource
+    if [[ -f $ressource ]]; then
+        exec mplayer -playlist $ressource
+    else
+        exec mplayer $ressource
+    fi
 }
 
-#TODO
-# check if link is an valid url
 function addNewStream()
 {
     local name=$1
-    local link=$2
-    echo "$name $link" >> $slist
-    exec mplayer $link
+    local ressource=$2
+    echo "$name $ressource" >> $slist
+    play $ressource
 }
 
 function list()
 {
-    OLDIFS=$IFS
-    IFS=""
+    OLDIFS=$IFS IFS=""
     for ((j=0; j < $limit; j++))
     do
         echo "[$j] ${lines[$j]}"
@@ -40,20 +47,52 @@ function list()
     IFS=$OLDIFS
 }
 
-function playRandom()
+function interactive()
 {
-    getRandomIndex
-    local num=$?
-    play $num
-    exit 0
+    while list
+    do
+        echo "take your choose:"
+        read num;
+        if [[ $num =~ ^[^0-9]+$ ]]; then
+            parseCategory $num
+        elif [ $num -gt $limit ]; then
+            echo "wrong index $num choose between 0 and $limit"
+            continue
+        fi
+        playIndex $num
+    done
 }
 
+function parseCategory()
+{
+    local regex="(^[a-zA-Z-]+\s?)\s(.*$)"
+    for ((k=0; k < $limit; k++))
+    do
+        if [[ ${lines[$k]} =~ $regex ]]; then
+            n=${#BASH_REMATCH[*]}
+            if [[ $n -eq 3 ]]; then
+                category=${BASH_REMATCH[1]}
+                ressource=${BASH_REMATCH[2]}
+                if [[ $category =~ $1 ]]; then
+                    play $ressource
+                fi
+            else
+                echo unrecognized numbers of sub-matches
+            fi
+        else
+            echo regex does not match
+        fi
+    done
+}
+
+# exists global file
 slist="$HOME/.streamlist"
 if [ ! -z $list ]; then
     echo "could not find .streamlist"
     exit 1
 fi
 
+# read it
 typeset -i i=0
 while read lines[$i]
 do
@@ -62,29 +101,17 @@ done < $slist
 
 limit=$(expr ${#lines[@]} - 1)
 
+if [[ $# -lt 1 ]]; then
+    interactive
+fi
+
 while getopts a:lri: opt
 do
     case $opt in
         a) shift; addNewStream "$@";;
-        l) list && exit;;
-        i) play $OPTARG;;
+        l) interactive;;
+        i) playIndex $OPTARG;;
         r) playRandom;;
     esac
 done
-
-# main loop
-while list
-do
-    echo "take your choose:"
-    read -t5 num;
-    if [ $? -eq 142 ]; then
-        echo "starting random ..."
-        getRandomIndex
-        num=$?
-    elif [ $num -gt $limit ]; then
-        echo "wrong index $num choose between 0 and $limit"
-        continue
-    fi
-
-    play $num
-done
+parseCategory "$@"
